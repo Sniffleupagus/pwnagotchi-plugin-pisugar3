@@ -19,7 +19,7 @@ class UPS:
     def voltage(self):
         try:
             low = self._bus.read_byte_data(0x57, 0x23)
-            high = self._bus.read_byte_date(0x57, 0x22)
+            high = self._bus.read_byte_data(0x57, 0x22)
             v = (((high << 8) + low)/1000)
             return v
         except:
