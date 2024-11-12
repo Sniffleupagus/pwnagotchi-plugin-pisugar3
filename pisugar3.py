@@ -15,30 +15,65 @@ class UPS:
         # only import when the module is loaded and enabled
         import smbus
         # 0 = /dev/i2c-0 (port I2C0), 1 = /dev/i2c-1 (port I2C1)
-        self._bus = smbus.SMBus(1)
+        self._bus = smbus.SMBus(4)
+
+    def busReadMultiTry(self, addr, idx, tries = 3):
+        val = None
+        while tries > 0:
+            tries -= 1
+            try:
+                val = self._bus.read_byte_data(addr, idx)
+                return val
+            except Exception as e:
+                if tries > 0:
+                    logging.debug("Retry %d: %s" % (tries, repr(e)))
+                else:
+                    logging.error("Retries failed: %s" % repr(e))
+        return val
 
     def voltage(self):
-        try:
-            low = self._bus.read_byte_data(0x57, 0x23)
-            high = self._bus.read_byte_data(0x57, 0x22)
-            v = (((high << 8) + low)/1000)
-            return v
-        except:
-            return 0.0
+        i = 3
+        while i > 0:
+            try:
+                low = self.busReadMultiTry(0x57, 0x23)
+                high = self.busReadMultiTry(0x57, 0x22)
+                v = (((high << 8) + low)/1000)
+                i = 0
+            except Exception as e:
+                logging.error(e)
+                v = 69
+                i = i - 1
+                time.sleep(0.5)
+        return v
 
     def capacity(self):
-        battery_level = 0
+        battery_level = 420
         # battery_v = self.voltage()
-        try:
-            battery_level = self._bus.read_byte_data(0x57, 0x2a)
-            return battery_level
-        except:
-            return battery_level
+        i = 3
+        while i > 0:
+            try:
+                battery_level = self.busReadMultiTry(0x57, 0x2a)
+                return battery_level
+            except Exception as e:
+                logging.error(e)
+                i = i - 1
+                time.sleep(0.5)
+        return battery_level
+
 
     def status(self):
-        stat02 = self._bus.read_byte_data(0x57, 0x02)
-        stat03 = self._bus.read_byte_data(0x57, 0x03)
-        stat04 = self._bus.read_byte_data(0x57, 0x04)
+        i = 3
+        while i > 0:
+            try:
+                stat02 = self.busReadMultiTry(0x57, 0x02)
+                stat03 = self.busReadMultiTry(0x57, 0x03)
+                stat04 = self.busReadMultiTry(0x57, 0x04)
+                i = 0
+            except Exception as e:
+                logging.error("Try again %s" % repr(e))
+                i = i - 1
+                time.sleep(0.5)
+
         return stat02, stat03, stat04
 
 class PiSugar3(plugins.Plugin):
@@ -49,6 +84,7 @@ class PiSugar3(plugins.Plugin):
 
     def __init__(self):
         self.ups = None
+        self._ready = False
         self.lasttemp = 69
         self.drot = 0 # display rotation
         self.nextDChg = 0 # last time display changed, rotate on updates after 5 seconds
@@ -61,6 +97,7 @@ class PiSugar3(plugins.Plugin):
         try:
             ui.add_element('bat', LabeledValue(color=BLACK, label='BAT', value='0%', position=(ui.width() / 2 + 10, 0),
                                                label_font=fonts.Bold, text_font=fonts.Medium))
+            self._ready = True
         except Exception as err:
             logging.warning("pisugar3 setup err: %s" % repr(err))
 
@@ -72,6 +109,9 @@ class PiSugar3(plugins.Plugin):
             logging.warning("pisugar3 unload err: %s" % repr(err))
 
     def on_ui_update(self, ui):
+        if not self._ready:
+          return
+
         capacity = self.ups.capacity()
         voltage = self.ups.voltage()
         stats = self.ups.status()
