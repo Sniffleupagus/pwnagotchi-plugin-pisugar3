@@ -11,11 +11,11 @@ import pwnagotchi.plugins as plugins
 import pwnagotchi
 
 class UPS:
-    def __init__(self):
+    def __init__(self, i2c_bus=1):
         # only import when the module is loaded and enabled
         import smbus
         # 0 = /dev/i2c-0 (port I2C0), 1 = /dev/i2c-1 (port I2C1)
-        self._bus = smbus.SMBus(4)
+        self._bus = smbus.SMBus(i2c_bus)
 
     def busReadMultiTry(self, addr, idx, tries = 3):
         val = None
@@ -90,7 +90,7 @@ class PiSugar3(plugins.Plugin):
         self.nextDChg = 0 # last time display changed, rotate on updates after 5 seconds
 
     def on_loaded(self):
-        self.ups = UPS()
+        self.ups = UPS(i2c_bus=self.options.get("i2c_bus", 1))
         logging.info("[pisugar3] plugin loaded.")
 
     def on_ui_setup(self, ui):
