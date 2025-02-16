@@ -33,10 +33,12 @@ class UPS:
 
     def voltage(self):
         i = 3
+        low = None
+        high = None
         while i > 0:
             try:
-                low = self.busReadMultiTry(0x57, 0x23)
-                high = self.busReadMultiTry(0x57, 0x22)
+                if low == None: low = self.busReadMultiTry(0x57, 0x23)
+                if high == None: high = self.busReadMultiTry(0x57, 0x22)
                 v = (((high << 8) + low)/1000)
                 i = 0
             except Exception as e:
@@ -63,11 +65,14 @@ class UPS:
 
     def status(self):
         i = 3
+        stat02 = None
+        stat03 = None
+        stat04 = None
         while i > 0:
             try:
-                stat02 = self.busReadMultiTry(0x57, 0x02)
-                stat03 = self.busReadMultiTry(0x57, 0x03)
-                stat04 = self.busReadMultiTry(0x57, 0x04)
+                if stat02 == None: stat02 = self.busReadMultiTry(0x57, 0x02)
+                if stat03 == None: stat03 = self.busReadMultiTry(0x57, 0x03)
+                if stat04 == None: stat04 = self.busReadMultiTry(0x57, 0x04)
                 i = 0
             except Exception as e:
                 logging.error("Try again %s" % repr(e))
